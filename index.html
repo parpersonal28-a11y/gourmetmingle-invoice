@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GourmetMingle Invoice Generator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f5f5f5; color: #222; }
+  .app { max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 22px; color: #b5451b; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 20px; }
+
+  .form-section { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .form-section h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: Arial; }
+  textarea { resize: vertical; min-height: 60px; }
+
+  .items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .items-table th { background: #f9f9f9; padding: 8px; text-align: left; border: 1px solid #ddd; font-weight: 600; font-size: 12px; }
+  .items-table td { padding: 6px 8px; border: 1px solid #eee; vertical-align: middle; }
+  .items-table td input, .items-table td select { border: none; background: transparent; padding: 2px 4px; font-size: 13px; width: 100%; }
+  .items-table td input:focus, .items-table td select:focus { outline: 1px solid #b5451b; border-radius: 2px; }
+  .items-table tr:hover td { background: #fafafa; }
+  .remove-btn { background: none; border: none; color: #c00; cursor: pointer; font-size: 16px; padding: 2px 6px; }
+
+  .btn { padding: 8px 18px; border-radius: 5px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: #b5451b; color: #fff; }
+  .btn-primary:hover { background: #963a17; }
+  .btn-secondary { background: #f0f0f0; color: #444; border: 1px solid #ccc; }
+  .btn-secondary:hover { background: #e5e5e5; }
+  .btn-green { background: #2a7a2a; color: #fff; }
+  .btn-green:hover { background: #1e5e1e; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* INVOICE PRINT STYLES */
+  #invoice-output { display: none; }
+  .invoice-wrap { background: #fff; padding: 40px; font-family: Arial, sans-serif; font-size: 13px; color: #222; max-width: 800px; margin: 0 auto; }
+  .inv-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #b5451b; padding-bottom: 16px; }
+  .brand-block h2 { font-size: 26px; color: #b5451b; font-weight: 700; letter-spacing: 1px; }
+  .brand-block p { font-size: 11px; color: #666; margin-top: 2px; }
+  .inv-meta { text-align: right; font-size: 12px; }
+  .inv-meta .inv-num { font-size: 17px; font-weight: 700; color: #333; }
+  .inv-meta p { margin-top: 3px; color: #555; }
+
+  .inv-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px; }
+  .inv-party h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #999; margin-bottom: 6px; }
+  .inv-party p { font-size: 12px; line-height: 1.6; }
+  .inv-party strong { font-size: 13px; }
+
+  .inv-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
+  .inv-table th { background: #b5451b; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .inv-table th.right, .inv-table td.right { text-align: right; }
+  .inv-table td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+  .inv-table tr:nth-child(even) td { background: #fafafa; }
+
+  .inv-totals { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+  .totals-box { width: 280px; font-size: 12px; }
+  .totals-box table { width: 100%; border-collapse: collapse; }
+  .totals-box td { padding: 5px 8px; }
+  .totals-box td:last-child { text-align: right; }
+  .totals-box tr.subtotal td { border-top: 1px solid #ddd; }
+  .totals-box tr.grand td { background: #b5451b; color: #fff; font-weight: 700; font-size: 14px; }
+
+  .inv-note { font-size: 11px; color: #888; margin-bottom: 20px; border-top: 1px dashed #ddd; padding-top: 12px; }
+  .inv-footer { border-top: 1px solid #ddd; padding-top: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .inv-footer p { font-size: 11px; color: #888; }
+  .digital-note { font-size: 11px; color: #b5451b; font-style: italic; text-align: center; margin-top: 18px; border-top: 1px solid #eee; padding-top: 10px; }
+
+  @media print {
+    body { background: white; }
+    .app > *:not(#invoice-output) { display: none !important; }
+    #invoice-output { display: block !important; }
+    .print-actions { display: none !important; }
+    .invoice-wrap { padding: 20px; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>GourmetMingle — Invoice Generator</h1>
+  <p class="subtitle">Hiransh Private Limited · GST: 24AAHCH4630H1ZS</p>
+
+  <!-- INVOICE INFO -->
+  <div class="form-section">
+    <h2>Invoice Details</h2>
+    <div class="form-row three">
+      <div>
+        <label>Invoice Number</label>
+        <input type="text" id="inv-number" value="March-2601" />
+      </div>
+      <div>
+        <label>Invoice Date</label>
+        <input type="date" id="inv-date" />
+      </div>
+      <div>
+        <label>Month (for auto-numbering)</label>
+        <select id="inv-month" onchange="autoInvoiceNumber()">
+          <option value="Jan">January</option>
+          <option value="Feb">February</option>
+          <option value="Mar" selected>March</option>
+          <option value="Apr">April</option>
+          <option value="May">May</option>
+          <option value="Jun">June</option>
+          <option value="Jul">July</option>
+          <option value="Aug">August</option>
+          <option value="Sep">September</option>
+          <option value="Oct">October</option>
+          <option value="Nov">November</option>
+          <option value="Dec">December</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILL TO -->
+  <div class="form-section">
+    <h2>Bill To (Customer Details)</h2>
+    <div class="form-row">
+      <div>
+        <label>Customer / Business Name</label>
+        <input type="text" id="cust-name" placeholder="e.g. ABC Traders" />
+      </div>
+      <div>
+        <label>Contact Person</label>
+        <input type="text" id="cust-contact" placeholder="Name" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Address</label>
+        <textarea id="cust-address" placeholder="Street, City, State, PIN"></textarea>
+      </div>
+      <div>
+        <label>GST Number (optional)</label>
+        <input type="text" id="cust-gst" placeholder="Customer GST No." />
+        <label style="margin-top:10px">Phone</label>
+        <input type="text" id="cust-phone" placeholder="+91-XXXXXXXXXX" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDER ITEMS -->
+  <div class="form-section">
+    <h2>Order Items</h2>
+    <table class="items-table" id="items-table">
+      <thead>
+        <tr>
+          <th style="width:36px">Sr.</th>
+          <th>Product</th>
+          <th style="width:90px">Size</th>
+          <th style="width:60px">Qty</th>
+          <th style="width:100px">Unit Price (₹ incl. GST)</th>
+          <th style="width:90px">Total (₹)</th>
+          <th style="width:36px"></th>
+        </tr>
+      </thead>
+      <tbody id="items-body">
+      </tbody>
+    </table>
+    <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="addRow()">+ Add Row</button>
+      <button class="btn btn-secondary" onclick="addFromCatalog()">+ Add from Catalog</button>
+    </div>
+  </div>
+
+  <!-- NOTE -->
+  <div class="form-section">
+    <h2>Additional Notes</h2>
+    <textarea id="inv-notes" placeholder="e.g. Payment due within 15 days. Thank you for your order!" rows="2"></textarea>
+  </div>
+
+  <div class="btn-row" style="margin-bottom:30px">
+    <button class="btn btn-primary" onclick="generateInvoice()">Generate Invoice</button>
+    <button class="btn btn-green" onclick="printInvoice()">Print / Save PDF</button>
+  </div>
+
+  <!-- CATALOG MODAL -->
+  <div id="catalog-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:10px;padding:24px;max-width:560px;width:95%;max-height:80vh;overflow-y:auto;">
+      <h3 style="font-size:15px;margin-bottom:14px;">Select Products from Catalog</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;" id="catalog-table"></table>
+      <div style="margin-top:16px;display:flex;gap:10px;">
+        <button class="btn btn-primary" onclick="addCatalogItems()">Add Selected</button>
+        <button class="btn btn-secondary" onclick="closeCatalog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVOICE OUTPUT -->
+  <div id="invoice-output">
+    <div class="invoice-wrap" id="invoice-content"></div>
+    <div class="print-actions btn-row" style="margin-top:16px;">
+      <button class="btn btn-green" onclick="window.print()">Print / Save as PDF</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('invoice-output').style.display='none'">← Back to Form</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRODUCTS = [
+  { name: "Red Chilly Powder",             sizes: { "100g":105, "200g":159, "500g":345, "1kg":555 } },
+  { name: "Kashmiri Red Chilli (Regular)", sizes: { "100g":140, "200g":228, "500g":519, "1kg":902 } },
+  { name: "Reshampati Red Chilli",         sizes: { "100g":123, "200g":193, "500g":432, "1kg":728 } },
+  { name: "Turmeric Powder",               sizes: { "100g":102, "200g":151, "500g":326, "1kg":517 } },
+  { name: "Coriander Cumin Powder",        sizes: { "50g":47, "100g":99, "200g":146, "500g":313, "1kg":492 } },
+  { name: "Garam Masala",                  sizes: { "100g":115, "200g":178 } },
+  { name: "Jeera (Premium)",               sizes: { "100g":105, "200g":158, "500g":343, "1kg":552 } },
+  { name: "Rai (Small)",                   sizes: { "100g":88, "200g":123, "500g":257, "1kg":378 } },
+  { name: "Kitchen King Masala",           sizes: { "50g":61, "100g":129, "200g":206 } },
+  { name: "Pav Bhaji Masala",              sizes: { "50g":61, "100g":129, "200g":206 } },
+  { name: "Biryani Masala",                sizes: { "50g":81, "100g":169, "200g":286 } },
+  { name: "Sambhar Masala",                sizes: { "50g":61, "100g":129, "200g":206 } },
+  { name: "Red Whole Chilly (Guntur)",     sizes: { "50g":47, "100g":98 } },
+  { name: "Chaas Masala",                  sizes: { "100g":117 } },
+];
+
+const MONTH_MAP = {
+  Jan:"January", Feb:"February", Mar:"March", Apr:"April",
+  May:"May", Jun:"June", Jul:"July", Aug:"August",
+  Sep:"September", Oct:"October", Nov:"November", Dec:"December"
+};
+
+let rowCounter = 0;
+let invoiceCounters = {};
+
+// Set today's date
+document.getElementById('inv-date').valueAsDate = new Date();
+
+function autoInvoiceNumber() {
+  const m = document.getElementById('inv-month').value;
+  const yr = new Date().getFullYear().toString().slice(2);
+  if (!invoiceCounters[m]) invoiceCounters[m] = 1;
+  document.getElementById('inv-number').value = `${MONTH_MAP[m]}-${yr}0${invoiceCounters[m]}`;
+}
+
+function addRow(name='', size='', qty=1, price='') {
+  const tbody = document.getElementById('items-body');
+  rowCounter++;
+  const n = rowCounter;
+  const sizeOptions = ['50g','100g','200g','500g','1kg'].map(s => `<option ${s===size?'selected':''}>${s}</option>`).join('');
+  const row = document.createElement('tr');
+  row.id = `row-${n}`;
+  row.innerHTML = `
+    <td style="color:#999;font-size:12px;text-align:center;">${tbody.children.length+1}</td>
+    <td><input type="text" value="${name}" placeholder="Product name" onchange="updateTotal(${n})" /></td>
+    <td>
+      <select onchange="autoPrice(${n})">
+        <option value="">Select</option>
+        ${sizeOptions}
+      </select>
+    </td>
+    <td><input type="number" value="${qty}" min="1" style="width:50px" onchange="updateTotal(${n})" /></td>
+    <td><input type="number" value="${price}" min="0" step="0.01" placeholder="0.00" onchange="updateTotal(${n})" /></td>
+    <td style="text-align:right;font-weight:600;" id="rowtotal-${n}">₹${price?(qty*price).toFixed(2):'0.00'}</td>
+    <td><button class="remove-btn" onclick="removeRow(${n})">×</button></td>
+  `;
+  tbody.appendChild(row);
+  reNumber();
+}
+
+function autoPrice(n) {
+  const row = document.getElementById(`row-${n}`);
+  const nameVal = row.querySelector('input[type=text]').value.trim();
+  const sizeVal = row.querySelectorAll('select')[0].value;
+  const found = PRODUCTS.find(p => p.name.toLowerCase() === nameVal.toLowerCase());
+  if (found && found.sizes[sizeVal] !== undefined) {
+    row.querySelectorAll('input[type=number]')[1].value = found.sizes[sizeVal];
+  }
+  updateTotal(n);
+}
+
+function updateTotal(n) {
+  const row = document.getElementById(`row-${n}`);
+  const qty = parseFloat(row.querySelectorAll('input[type=number]')[0].value) || 0;
+  const price = parseFloat(row.querySelectorAll('input[type=number]')[1].value) || 0;
+  document.getElementById(`rowtotal-${n}`).textContent = '₹' + (qty * price).toFixed(2);
+}
+
+function removeRow(n) {
+  document.getElementById(`row-${n}`).remove();
+  reNumber();
+}
+
+function reNumber() {
+  const rows = document.querySelectorAll('#items-body tr');
+  rows.forEach((r, i) => { const c = r.querySelector('td:first-child'); if(c) c.textContent = i+1; });
+}
+
+function addFromCatalog() {
+  const modal = document.getElementById('catalog-modal');
+  const tbl = document.getElementById('catalog-table');
+  tbl.innerHTML = `<thead><tr style="background:#f0f0f0">
+    <th style="padding:6px 8px;text-align:left">Select</th>
+    <th style="padding:6px 8px;text-align:left">Product</th>
+    <th style="padding:6px 8px;text-align:left">Size</th>
+    <th style="padding:6px 8px;text-align:right">Price (₹)</th>
+    <th style="padding:6px 8px;text-align:center">Qty</th>
+  </tr></thead><tbody>` +
+  PRODUCTS.flatMap(p => Object.entries(p.sizes).map(([sz,pr]) =>
+    `<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:5px 8px;text-align:center"><input type="checkbox" class="cat-cb" data-name="${p.name}" data-size="${sz}" data-price="${pr}" /></td>
+      <td style="padding:5px 8px">${p.name}</td>
+      <td style="padding:5px 8px">${sz}</td>
+      <td style="padding:5px 8px;text-align:right">${pr}</td>
+      <td style="padding:5px 8px;text-align:center"><input type="number" class="cat-qty" value="1" min="1" style="width:50px;padding:3px;border:1px solid #ccc;border-radius:3px" /></td>
+    </tr>`
+  )).join('') + `</tbody>`;
+  modal.style.display = 'flex';
+}
+
+function addCatalogItems() {
+  document.querySelectorAll('.cat-cb:checked').forEach((cb, i) => {
+    const qty = cb.closest('tr').querySelector('.cat-qty').value;
+    addRow(cb.dataset.name, cb.dataset.size, qty, cb.dataset.price);
+  });
+  closeCatalog();
+}
+
+function closeCatalog() {
+  document.getElementById('catalog-modal').style.display = 'none';
+}
+
+function generateInvoice() {
+  const rows = document.querySelectorAll('#items-body tr');
+  if (!rows.length) { alert('Please add at least one item.'); return; }
+
+  const custName = document.getElementById('cust-name').value || 'N/A';
+  const custContact = document.getElementById('cust-contact').value;
+  const custAddress = document.getElementById('cust-address').value || '';
+  const custGST = document.getElementById('cust-gst').value;
+  const custPhone = document.getElementById('cust-phone').value;
+  const invNum = document.getElementById('inv-number').value;
+  const invDate = document.getElementById('inv-date').value;
+  const notes = document.getElementById('inv-notes').value;
+
+  // Increment counter for next invoice
+  const m = document.getElementById('inv-month').value;
+  if (!invoiceCounters[m]) invoiceCounters[m] = 1;
+  invoiceCounters[m]++;
+  const yr = new Date().getFullYear().toString().slice(2);
+  document.getElementById('inv-number').value = `${MONTH_MAP[m]}-${yr}0${invoiceCounters[m]}`;
+
+  let itemRows = '';
+  let grandTotal = 0;
+  let srNum = 1;
+
+  rows.forEach(row => {
+    const name = row.querySelector('input[type=text]').value || '-';
+    const size = row.querySelectorAll('select')[0].value || '-';
+    const qty = parseFloat(row.querySelectorAll('input[type=number]')[0].value) || 0;
+    const unitPrice = parseFloat(row.querySelectorAll('input[type=number]')[1].value) || 0;
+    const total = qty * unitPrice;
+    const gstRate = 5;
+    const basePrice = total / (1 + gstRate / 100);
+    const cgst = (total - basePrice) / 2;
+    const sgst = (total - basePrice) / 2;
+    grandTotal += total;
+
+    itemRows += `<tr>
+      <td>${srNum++}</td>
+      <td>${name}</td>
+      <td>${size}</td>
+      <td class="right">${qty}</td>
+      <td class="right">₹${unitPrice.toFixed(2)}</td>
+      <td class="right">₹${basePrice.toFixed(2)}</td>
+      <td class="right">₹${cgst.toFixed(2)}</td>
+      <td class="right">₹${sgst.toFixed(2)}</td>
+      <td class="right"><strong>₹${total.toFixed(2)}</strong></td>
+    </tr>`;
+  });
+
+  const baseTotal = grandTotal / 1.05;
+  const totalCGST = (grandTotal - baseTotal) / 2;
+  const totalSGST = (grandTotal - baseTotal) / 2;
+
+  const dateFormatted = invDate ? new Date(invDate).toLocaleDateString('en-IN', {day:'2-digit',month:'long',year:'numeric'}) : '-';
+
+  const html = `
+  <div class="inv-header">
+    <div class="brand-block">
+      <h2>GourmetMingle</h2>
+      <p>by Hiransh Private Limited</p>
+      <p style="margin-top:6px;font-size:11px;line-height:1.7">
+        GST No: <strong>24AAHCH4630H1ZS</strong><br/>
+        Email: contact.hiransh@gmail.com<br/>
+        Phone: +91-8487886239
+      </p>
+    </div>
+    <div class="inv-meta">
+      <div class="inv-num">TAX INVOICE</div>
+      <p><strong>${invNum}</strong></p>
+      <p>Date: ${dateFormatted}</p>
+    </div>
+  </div>
+
+  <div class="inv-parties">
+    <div class="inv-party">
+      <h4>Bill To</h4>
+      <p><strong>${custName}</strong></p>
+      ${custContact ? `<p>${custContact}</p>` : ''}
+      ${custAddress ? `<p>${custAddress.replace(/\n/g,'<br/>')}</p>` : ''}
+      ${custGST ? `<p>GST: ${custGST}</p>` : ''}
+      ${custPhone ? `<p>Ph: ${custPhone}</p>` : ''}
+    </div>
+    <div class="inv-party" style="text-align:right">
+      <h4>From</h4>
+      <p><strong>Hiransh Private Limited</strong></p>
+      <p>Brand: GourmetMingle</p>
+      <p>GST No: 24AAHCH4630H1ZS</p>
+      <p>contact.hiransh@gmail.com</p>
+      <p>+91-8487886239</p>
+    </div>
+  </div>
+
+  <table class="inv-table">
+    <thead>
+      <tr>
+        <th style="width:32px">Sr.</th>
+        <th>Product</th>
+        <th>Weight</th>
+        <th class="right">Qty</th>
+        <th class="right">Unit Price</th>
+        <th class="right">Base Amt</th>
+        <th class="right">CGST 2.5%</th>
+        <th class="right">SGST 2.5%</th>
+        <th class="right">Total (₹)</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+
+  <div class="inv-totals">
+    <div class="totals-box">
+      <table>
+        <tr><td>Taxable Amount</td><td>₹${baseTotal.toFixed(2)}</td></tr>
+        <tr class="subtotal"><td>CGST @ 2.5%</td><td>₹${totalCGST.toFixed(2)}</td></tr>
+        <tr><td>SGST @ 2.5%</td><td>₹${totalSGST.toFixed(2)}</td></tr>
+        <tr><td style="font-size:11px;color:#aaa;">Total GST (5%)</td><td style="font-size:11px;color:#aaa;">₹${(totalCGST+totalSGST).toFixed(2)}</td></tr>
+        <tr class="grand"><td>Grand Total</td><td>₹${grandTotal.toFixed(2)}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  ${notes ? `<div class="inv-note"><strong>Note:</strong> ${notes}</div>` : ''}
+
+  <div class="inv-footer">
+    <div>
+      <p>For Hiransh Private Limited</p>
+      <p style="margin-top:4px">(GourmetMingle)</p>
+    </div>
+    <div style="text-align:right">
+      <p>Authorised Signatory</p>
+    </div>
+  </div>
+  <div class="digital-note">This is a digitally generated invoice. No physical signature is required.</div>
+  `;
+
+  document.getElementById('invoice-content').innerHTML = html;
+  document.getElementById('invoice-output').style.display = 'block';
+  document.getElementById('invoice-output').scrollIntoView({ behavior: 'smooth' });
+}
+
+function printInvoice() {
+  generateInvoice();
+  setTimeout(() => window.print(), 400);
+}
+
+// Add 3 blank rows to start
+addRow(); addRow(); addRow();
+</script>
+</body>
+</html>
